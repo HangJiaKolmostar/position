@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Location</title>
+</head>
+<body>
+
+<button onclick="getCurrentPosition()">getCurrentPosition</button>
+<script>
+    function  getCurrentPosition(){
+        document.write("Waiting for location...<br/>")
+        navigator.geolocation.getCurrentPosition(function(position) {
+            let lat = position.coords.latitude;
+            let long = position.coords.longitude;
+            document.write(`Location: ${lat},${long}`)
+            navigator.clipboard.writeText(`${lat},${long}`).then(()=>{window.close();});
+          });
+    }
+</script>
+</body>
+</html>
