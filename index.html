@@ -5,17 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Location</title>
 </head>
-<body>
-
+<body style="font-size: 20px;">
+    
 <button onclick="getCurrentPosition()">getCurrentPosition</button>
+    
 <script>
     function  getCurrentPosition(){
         document.write("Waiting for location...<br/>")
         navigator.geolocation.getCurrentPosition(function(position) {
             let lat = position.coords.latitude;
             let long = position.coords.longitude;
-            document.write(`Location: ${lat},${long}`)
+            document.write(`Location:<br/><code>${lat},${long}</code><br/>Tap screen to copy this location to clipboard.`)
             navigator.clipboard.writeText(`${lat},${long}`).then(()=>{window.close();});
+            document.onclick = ()=> {navigator.clipboard.writeText(`${lat},${long}`).then(()=>{window.close();})}
           });
     }
     getCurrentPosition()
