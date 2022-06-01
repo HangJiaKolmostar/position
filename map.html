@@ -19,7 +19,7 @@
 	function baidu_pos(longitude, latitude) {
 	  let [lng, lat] = coordtransform.wgs84togcj02(longitude, latitude);
 	  [lng, lat] = coordtransform.gcj02tobd09(lng, lat);
-	  return {lng, lat};
+	  return new BMap.Point(lng, lat);
 	}
 
     let param = new URLSearchParams(window.location.search);
