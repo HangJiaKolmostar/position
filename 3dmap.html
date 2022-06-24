@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang=en>
+<head>
+  <title>#</title>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js'></script>
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.css' rel='stylesheet'/>
+  <style>
+      body {
+          margin: 0;
+          padding: 0
+      }
+
+      #map {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 100%
+      }
+
+      table, td, th, tr {
+          border-collapse: collapse;
+          text-align: left
+      }
+
+      .pane {
+          padding: 0 15px;
+          background: #ccc;
+          line-height: 28px;
+          color: #fff;
+          z-index: 10;
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          box-shadow: rgba(0, 0, 0, .35) 0 5px 15px;
+          font-family: Arial;
+          font-size: 11px;
+          color: rgba(0, 0, 0, .75);
+          text-decoration: none
+      }
+
+  </style>
+</head>
+<body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+<div class="pane">
+  <form onsubmit="return!1" class="pure-form">
+    <table>
+      <tr>
+        <td>
+          <button id="resetMap"><b>↺</b></button>
+        </td>
+        <td><small>(Reset)</small>&nbsp;&nbsp;</td>
+      </tr>
+    </table>
+  </form>
+</div>
+<div id=map></div>
+<script>
+    let query = new URLSearchParams(window.location.search);
+    const mapCenter = [
+        parseFloat(query.get('lng') || 116.348853),
+        parseFloat(query.get('lat') || 39.987077),
+    ];
+    const defaultPitch = 45;
+    const defaultBearing = -17.6;
+    const defaultZoom = 14.95;
+    const maxZoom = 17;
+
+    var _0x259af2=_0x371e;function _0x6882(){var _0x5741c8=['1251107vEtdJV','pk.eyJ1IjoiZ2Vlay1jYyIsImEiOiJja3VnZW42cTEyM2RiMm5temVnNjdvOHIyIn0.8-BhfDwt5IfVfXpGaSAtGA','7290731fdjpHC','8MzJaei','13922470QtdKik','36KADhcT','4199718LCNvOG','916282DfjPvJ','10SxpMcf','982088wfwgDL','2HVywJW','11KixSJY','12950271YRbTmW','6CvnMEm'];_0x6882=function(){return _0x5741c8;};return _0x6882();}function _0x371e(_0x159dd1,_0x57b7e0){var _0x6882b7=_0x6882();return _0x371e=function(_0x371e62,_0x16ed90){_0x371e62=_0x371e62-0x1af;var _0xb43c76=_0x6882b7[_0x371e62];return _0xb43c76;},_0x371e(_0x159dd1,_0x57b7e0);}(function(_0x4298b8,_0xb29e59){var _0x53d31c=_0x371e,_0x3b6cb4=_0x4298b8();while(!![]){try{var _0x303fe1=-parseInt(_0x53d31c(0x1af))/0x1*(parseInt(_0x53d31c(0x1ba))/0x2)+parseInt(_0x53d31c(0x1b2))/0x3*(-parseInt(_0x53d31c(0x1bc))/0x4)+-parseInt(_0x53d31c(0x1bb))/0x5*(-parseInt(_0x53d31c(0x1b9))/0x6)+parseInt(_0x53d31c(0x1b5))/0x7+-parseInt(_0x53d31c(0x1b6))/0x8*(-parseInt(_0x53d31c(0x1b1))/0x9)+parseInt(_0x53d31c(0x1b7))/0xa*(-parseInt(_0x53d31c(0x1b0))/0xb)+-parseInt(_0x53d31c(0x1b8))/0xc*(parseInt(_0x53d31c(0x1b3))/0xd);if(_0x303fe1===_0xb29e59)break;else _0x3b6cb4['push'](_0x3b6cb4['shift']());}catch(_0x529aaa){_0x3b6cb4['push'](_0x3b6cb4['shift']());}}}(_0x6882,0xc1604),mapboxgl['accessToken']=_0x259af2(0x1b4));
+
+    const mapboxMap = new mapboxgl.Map({
+        container: "map",
+        // https://docs.mapbox.com/api/maps/styles/#mapbox-styles
+        style: "mapbox://styles/mapbox/streets-v11",
+        center: mapCenter,
+        zoom: defaultZoom,
+        pitch: defaultPitch,
+        bearing: defaultBearing,
+        antialias: !0
+    });
+
+    function _add_layer(name, dimension, geodata, color, opacity, args) {
+        mapboxMap.addSource(name, {
+            type: "geojson",
+            data: geodata
+        });
+        let type = dimension === 3 ? "fill-extrusion" : "fill";
+        args[`${type}-color`] = color;
+        args[`${type}-opacity`] = opacity;
+        if (dimension === 3)
+            args[`${type}-height`] = ["get", "height"];
+
+        mapboxMap.addLayer({
+            id: name + '_layer',
+            type: type,
+            source: name,
+            paint: args
+        });
+    }
+
+    function add_3d_layer(name, geodata, color, opacity, args) {
+        _add_layer(name, 3, geodata, color, opacity, args)
+    }
+
+    function add_2d_layer(name, geodata, args) {
+        _add_layer(name, 2, geodata, color, opacity, args)
+    }
+
+    function execute_cmd(cmd, args) {
+        let arg_names = ['map'];
+        let arg_vals = [mapboxMap];
+        for (let key in args) {
+            arg_names.push(key);
+            arg_vals.push(args[key]);
+        }
+        try {
+            const script_func = new Function(...arg_names, `return eval(${cmd})`);
+            script_func(...arg_vals);
+        } catch (e) {
+            console.log('Exception occurred when execute cmd: %s\n%s', cmd, e);
+        }
+    }
+
+    let map_loaded = false;
+    let waiting_list = [];
+
+    window.addEventListener("message", (event) => {
+        let data = event.data;
+        if (data.cmd === undefined || data.args === undefined)
+            return;
+
+        if (map_loaded)
+            execute_cmd(data.cmd, data.args);
+        else
+            waiting_list.push(() => execute_cmd(data.cmd, data.args))
+    }, false);
+
+    var resetMap = document.getElementById("resetMap");
+    resetMap.onclick = function () {
+        mapboxMap.flyTo({
+            center: mapCenter,
+            zoom: defaultZoom,
+            pitch: defaultPitch,
+            bearing: defaultBearing
+        });
+    };
+
+    mapboxMap.on("load", () => {
+        map_loaded = true;
+        for (let func of waiting_list)
+            func()
+
+        mapboxMap.addControl(new mapboxgl.FullscreenControl());
+        mapboxMap.addControl(new mapboxgl.NavigationControl());
+    });
+
+
+</script>
+</body>
+</html>
