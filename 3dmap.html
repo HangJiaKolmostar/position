@@ -104,7 +104,8 @@
         _add_layer(name, 3, geodata, color, opacity, args)
     }
 
-    function add_2d_layer(name, geodata, args) {
+    function add_2d_layer(name, geodata, color, opacity, args) {
+        console.log('add_2d_layer', name, geodata, color, opacity, args)
         _add_layer(name, 2, geodata, color, opacity, args)
     }
 
@@ -162,7 +163,6 @@
     mapboxMap.on('click', (e) => {
         console.log('Clicked:', e.lngLat);
     });
-
 </script>
 </body>
 </html>
