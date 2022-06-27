@@ -82,9 +82,10 @@
     });
 
     let first_layer_id = undefined;
+
     function _add_layer(name, type, geodata, color, opacity, paint_args, layer_args, bg) {
         console.log('_add_layer', arguments)
-        if(!first_layer_id)
+        if (!first_layer_id)
             first_layer_id = name + '_layer';
 
         mapboxMap.addSource(name, {
@@ -106,7 +107,9 @@
             source: name,
             paint: paint_args,
             ...layer_args
-        }, bg?first_layer_id:bg);
+        }, bg ? first_layer_id : bg);
+        if (bg)
+            first_layer_id = name + '_layer';
     }
 
     function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
