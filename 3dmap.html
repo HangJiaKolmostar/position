@@ -154,6 +154,9 @@
 
         mapboxMap.addControl(new mapboxgl.FullscreenControl());
         mapboxMap.addControl(new mapboxgl.NavigationControl());
+
+        if (window.opener && window.opener.postMessage)
+            window.opener.postMessage({mapboxReady: true}, '*')
     });
 
     mapboxMap.on('click', (e) => {
