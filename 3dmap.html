@@ -81,32 +81,44 @@
         antialias: !0
     });
 
-    function _add_layer(name, dimension, geodata, color, opacity, args) {
+    let first_layer_id = undefined;
+    function _add_layer(name, type, geodata, color, opacity, paint_args, layer_args, bg) {
+        console.log('_add_layer', arguments)
+        if(!first_layer_id)
+            first_layer_id = name + '_layer';
+
         mapboxMap.addSource(name, {
             type: "geojson",
             data: geodata
         });
-        let type = dimension === 3 ? "fill-extrusion" : "fill";
-        args[`${type}-color`] = color;
-        args[`${type}-opacity`] = opacity;
-        if (dimension === 3)
-            args[`${type}-height`] = ["get", "height"];
+
+        paint_args[`${type}-color`] = color;
+        paint_args[`${type}-opacity`] = opacity;
+        if (type === "fill-extrusion")
+            paint_args[`${type}-height`] = ["get", "height"];
+
+        if (!layer_args)
+            layer_args = {}
 
         mapboxMap.addLayer({
             id: name + '_layer',
             type: type,
             source: name,
-            paint: args
-        });
+            paint: paint_args,
+            ...layer_args
+        }, bg?first_layer_id:bg);
     }
 
-    function add_3d_layer(name, geodata, color, opacity, args) {
-        _add_layer(name, 3, geodata, color, opacity, args)
+    function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
+        _add_layer(name, "fill-extrusion", geodata, color, opacity, args, layer_args, bg)
     }
 
-    function add_2d_layer(name, geodata, color, opacity, args) {
-        console.log('add_2d_layer', name, geodata, color, opacity, args)
-        _add_layer(name, 2, geodata, color, opacity, args)
+    function add_2d_layer(name, geodata, color, opacity, args, layer_args, bg) {
+        _add_layer(name, "fill", geodata, color, opacity, args, layer_args, bg)
+    }
+
+    function add_route_layer(name, geodata, color, opacity, args, layer_args, bg) {
+        _add_layer(name, "line", geodata, color, opacity, args, layer_args, bg)
     }
 
     function execute_cmd(cmd, args) {
