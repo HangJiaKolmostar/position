@@ -6,6 +6,7 @@
   <meta name=viewport content="initial-scale=1,maximum-scale=1,user-scalable=no">
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js'></script>
   <link href='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.css' rel='stylesheet'/>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" ></script>
   <style>
       body {
           margin: 0;
@@ -46,7 +47,7 @@
 <noscript>You need to enable JavaScript to run this app.</noscript>
 <div class="pane">
   <form onsubmit="return!1" class="pure-form">
-    <table>
+    <table id="layers-table">
       <tr>
         <td>
           <button id="resetMap"><b>↺</b></button>
@@ -63,37 +64,71 @@
         parseFloat(query.get('lng') || 116.348853),
         parseFloat(query.get('lat') || 39.987077),
     ];
-    const defaultPitch = 45;
-    const defaultBearing = -17.6;
+    const flat = query.get('2d') || false;
+
+    const defaultPitch = flat ? 0 : 45;
+    const defaultBearing = flat ? 0 : -17.6;
     const defaultZoom = 14.95;
     const maxZoom = 17;
 
-    var _0x259af2=_0x371e;function _0x6882(){var _0x5741c8=['1251107vEtdJV','pk.eyJ1IjoiZ2Vlay1jYyIsImEiOiJja3VnZW42cTEyM2RiMm5temVnNjdvOHIyIn0.8-BhfDwt5IfVfXpGaSAtGA','7290731fdjpHC','8MzJaei','13922470QtdKik','36KADhcT','4199718LCNvOG','916282DfjPvJ','10SxpMcf','982088wfwgDL','2HVywJW','11KixSJY','12950271YRbTmW','6CvnMEm'];_0x6882=function(){return _0x5741c8;};return _0x6882();}function _0x371e(_0x159dd1,_0x57b7e0){var _0x6882b7=_0x6882();return _0x371e=function(_0x371e62,_0x16ed90){_0x371e62=_0x371e62-0x1af;var _0xb43c76=_0x6882b7[_0x371e62];return _0xb43c76;},_0x371e(_0x159dd1,_0x57b7e0);}(function(_0x4298b8,_0xb29e59){var _0x53d31c=_0x371e,_0x3b6cb4=_0x4298b8();while(!![]){try{var _0x303fe1=-parseInt(_0x53d31c(0x1af))/0x1*(parseInt(_0x53d31c(0x1ba))/0x2)+parseInt(_0x53d31c(0x1b2))/0x3*(-parseInt(_0x53d31c(0x1bc))/0x4)+-parseInt(_0x53d31c(0x1bb))/0x5*(-parseInt(_0x53d31c(0x1b9))/0x6)+parseInt(_0x53d31c(0x1b5))/0x7+-parseInt(_0x53d31c(0x1b6))/0x8*(-parseInt(_0x53d31c(0x1b1))/0x9)+parseInt(_0x53d31c(0x1b7))/0xa*(-parseInt(_0x53d31c(0x1b0))/0xb)+-parseInt(_0x53d31c(0x1b8))/0xc*(parseInt(_0x53d31c(0x1b3))/0xd);if(_0x303fe1===_0xb29e59)break;else _0x3b6cb4['push'](_0x3b6cb4['shift']());}catch(_0x529aaa){_0x3b6cb4['push'](_0x3b6cb4['shift']());}}}(_0x6882,0xc1604),mapboxgl['accessToken']=_0x259af2(0x1b4));
+    mapboxgl.accessToken = "pk.eyJ1IjoiZ2Vlay1jYyIsImEiOiJja3VnZW42cTEyM2RiMm5temVnNjdvOHIyIn0.8-BhfDwt5IfVfXpGaSAtGA";
 
     const mapboxMap = new mapboxgl.Map({
         container: "map",
         // https://docs.mapbox.com/api/maps/styles/#mapbox-styles
-        style: "mapbox://styles/mapbox/streets-v11",
+        // style: "mapbox://styles/mapbox/streets-v11",
+        style: "mapbox://styles/mapbox/" + (query.get('style') || 'streets-v11'),
         center: mapCenter,
         zoom: defaultZoom,
         pitch: defaultPitch,
         bearing: defaultBearing,
-        antialias: !0
+        antialias: true
     });
 
+    let all_layers = []
+    function toggle_layer(name) {
+        let layer = mapboxMap.getLayer(name);
+        if (layer.visibility === 'none') {
+            layer.visibility = 'visible';
+        } else {
+            layer.visibility = 'none';
+        }
+        mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
+    }
+    function on_add_layer(name){
+        all_layers.push(name)
+        var parseHTML = function (str) {
+            var tmp = document.implementation.createHTMLDocument("");
+            tmp.body.innerHTML = str;
+            return tmp.body.children;
+        };
+        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')"/></td><td>${name}</td></tr>`)
+    }
+    function layer_unique_name(name){
+        console.log(name, mapboxMap.getLayer(`${name}_layer`))
+        if (!mapboxMap.getLayer(`${name}_layer`))
+            return `${name}_layer`
+
+        let i = 1;
+        while(mapboxMap.getLayer(`${name}_layer_${i}`)){
+            i++;
+        }
+        return `${name}_layer_${i}`
+    }
     let first_layer_id = undefined;
 
     function _add_layer(name, type, geodata, color, opacity, paint_args, layer_args, bg) {
-        console.log('_add_layer', arguments)
+        let layer_id = layer_unique_name(name);
+        console.log(layer_id)
         if (!first_layer_id)
-            first_layer_id = name + '_layer';
+            first_layer_id = layer_id;
 
-        mapboxMap.addSource(name, {
+        mapboxMap.addSource(layer_id, {
             type: "geojson",
             data: geodata
         });
 
-        paint_args[`${type}-color`] = color;
+        paint_args[`${type}-color`] = ['coalesce', ["get", "color"], ['to-color', color]];
         paint_args[`${type}-opacity`] = opacity;
         if (type === "fill-extrusion")
             paint_args[`${type}-height`] = ["get", "height"];
@@ -102,14 +137,15 @@
             layer_args = {}
 
         mapboxMap.addLayer({
-            id: name + '_layer',
+            id: layer_id,
             type: type,
-            source: name,
+            source: layer_id,
             paint: paint_args,
             ...layer_args
         }, bg ? first_layer_id : bg);
         if (bg)
-            first_layer_id = name + '_layer';
+            first_layer_id = layer_id;
+        on_add_layer(layer_id)
     }
 
     function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
@@ -122,6 +158,88 @@
 
     function add_route_layer(name, geodata, color, opacity, args, layer_args, bg) {
         _add_layer(name, "line", geodata, color, opacity, args, layer_args, bg)
+    }
+
+    function add_markers(points) {
+        points.forEach(point => {
+            const marker = new mapboxgl.Marker({
+                draggable: false,
+                color: '#ff0000'
+            })
+            marker.setLngLat([point[1], point[0]])
+            marker.setPopup(new mapboxgl.Popup().setHTML(`<pre>${point[1]}, ${point[0]}\n${point[2] || ''}</pre>`))
+            const markerDiv = marker.getElement();
+            markerDiv.addEventListener('mouseenter', () => marker.togglePopup());
+            markerDiv.addEventListener('mouseleave', () => marker.togglePopup());
+            marker.addTo(mapboxMap)
+        })
+    }
+
+    function add_points_layer(name, points, color = null, paint_args = {}, layer_args = {}, bg = false) {
+        let layer_id = layer_unique_name(name);
+        mapboxMap.addSource(layer_id, {
+            type: "geojson",
+            data: {
+                'type': 'FeatureCollection',
+                'features': points.map((p) => ({
+                    'type': 'Feature',
+                    'properties': {
+                        'description': `<pre>${p[1]}, ${p[0]}\n${p[2] || ''}</pre>`,
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [p[1], p[0]]
+                    }
+                }))
+            }
+        });
+
+        mapboxMap.addLayer({
+            id: layer_id,
+            type: 'circle',
+            source: layer_id,
+            paint: {
+                'circle-color': color || '#4264fb',
+                'circle-radius': 6,
+                // 'circle-stroke-width': 2,
+                // 'circle-stroke-color': '#ffffff'
+                ...paint_args
+            },
+            ...layer_args
+        }, bg ? first_layer_id : bg);
+        if (bg)
+            first_layer_id = layer_id;
+
+        // Create a popup, but don't add it to the map yet.
+        const popup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false
+        });
+
+        mapboxMap.on('mouseenter', layer_id, (e) => {
+            // Change the cursor style as a UI indicator.
+            mapboxMap.getCanvas().style.cursor = 'pointer';
+
+            // Copy coordinates array.
+            const coordinates = e.features[0].geometry.coordinates.slice();
+            const description = e.features[0].properties.description;
+
+            // Ensure that if the map is zoomed out such that multiple
+            // copies of the feature are visible, the popup appears
+            // over the copy being pointed to.
+            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+            }
+
+            // Populate the popup and set its coordinates
+            // based on the feature found.
+            popup.setLngLat(coordinates).setHTML(description).addTo(mapboxMap);
+        });
+        mapboxMap.on('mouseleave',layer_id,() => {
+            mapboxMap.getCanvas().style.cursor = '';
+            popup.remove();
+        });
+        on_add_layer(layer_id)
     }
 
     function execute_cmd(cmd, args) {
@@ -173,6 +291,8 @@
 
         if (window.opener && window.opener.postMessage)
             window.opener.postMessage({mapboxReady: true}, '*')
+
+        // add_points_layer('points', [[39.98707741666667, 116.34885383333332, 'ssss']])
     });
 
     mapboxMap.on('click', (e) => {
