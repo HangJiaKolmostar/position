@@ -6,7 +6,8 @@
   <meta name=viewport content="initial-scale=1,maximum-scale=1,user-scalable=no">
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js'></script>
   <link href='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.css' rel='stylesheet'/>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js" ></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://fastly.jsdelivr.net/gh/eligrey/FileSaver.js/dist/FileSaver.min.js"></script>
   <style>
       body {
           margin: 0;
@@ -49,17 +50,22 @@
   <form onsubmit="return!1" class="pure-form">
     <table id="layers-table">
       <tr>
-        <td>
-          <button id="resetMap"><b>↺</b></button>
+        <td colspan="2">
+          <button id="save-btn"><b>SAVE PAGE</b></button>
         </td>
-        <td><small>(Reset)</small>&nbsp;&nbsp;</td>
       </tr>
     </table>
   </form>
 </div>
 <div id=map></div>
+<script type="application/json-lines" id="commands"></script>
+<script type="text/tpl" id="query"></script>
 <script>
-    let query = new URLSearchParams(window.location.search);
+    const init_html = $('html')[0].outerHTML;
+    if ($('#commands').text().length)  // this page is open from saved file
+        $('#layers-table').empty();
+
+    let query = new URLSearchParams(window.location.search || $('#query').text());
     const mapCenter = [
         parseFloat(query.get('lng') || 116.348853),
         parseFloat(query.get('lat') || 39.987077),
@@ -72,6 +78,8 @@
     const maxZoom = 17;
 
     mapboxgl.accessToken = "pk.eyJ1IjoiZ2Vlay1jYyIsImEiOiJja3VnZW42cTEyM2RiMm5temVnNjdvOHIyIn0.8-BhfDwt5IfVfXpGaSAtGA";
+
+    let initial_commands = JSON.parse($('#commands').text() || '[]');
 
     const mapboxMap = new mapboxgl.Map({
         container: "map",
@@ -86,6 +94,7 @@
     });
 
     let all_layers = []
+
     function toggle_layer(name) {
         let layer = mapboxMap.getLayer(name);
         if (layer.visibility === 'none') {
@@ -95,7 +104,8 @@
         }
         mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
     }
-    function on_add_layer(name){
+
+    function on_add_layer(name) {
         all_layers.push(name)
         var parseHTML = function (str) {
             var tmp = document.implementation.createHTMLDocument("");
@@ -104,17 +114,19 @@
         };
         $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')"/></td><td>${name}</td></tr>`)
     }
-    function layer_unique_name(name){
+
+    function layer_unique_name(name) {
         console.log(name, mapboxMap.getLayer(`${name}_layer`))
         if (!mapboxMap.getLayer(`${name}_layer`))
             return `${name}_layer`
 
         let i = 1;
-        while(mapboxMap.getLayer(`${name}_layer_${i}`)){
+        while (mapboxMap.getLayer(`${name}_layer_${i}`)) {
             i++;
         }
         return `${name}_layer_${i}`
     }
+
     let first_layer_id = undefined;
 
     function _add_layer(name, type, geodata, color, opacity, paint_args, layer_args, bg) {
@@ -235,7 +247,7 @@
             // based on the feature found.
             popup.setLngLat(coordinates).setHTML(description).addTo(mapboxMap);
         });
-        mapboxMap.on('mouseleave',layer_id,() => {
+        mapboxMap.on('mouseleave', layer_id, () => {
             mapboxMap.getCanvas().style.cursor = '';
             popup.remove();
         });
@@ -259,11 +271,15 @@
 
     let map_loaded = false;
     let waiting_list = [];
+    let recv_commands = [];
 
     window.addEventListener("message", (event) => {
         let data = event.data;
         if (data.cmd === undefined || data.args === undefined)
             return;
+
+        // Persistence data
+        recv_commands.push(data);
 
         if (map_loaded)
             execute_cmd(data.cmd, data.args);
@@ -271,15 +287,23 @@
             waiting_list.push(() => execute_cmd(data.cmd, data.args))
     }, false);
 
-    var resetMap = document.getElementById("resetMap");
-    resetMap.onclick = function () {
-        mapboxMap.flyTo({
-            center: mapCenter,
-            zoom: defaultZoom,
-            pitch: defaultPitch,
-            bearing: defaultBearing
-        });
-    };
+    if (document.getElementById("save-btn"))
+        document.getElementById("save-btn").onclick = function () {
+            let doc = init_html.replace('id="commands">', 'id="commands">' + JSON.stringify(recv_commands))
+            doc = doc.replace('id="query">', 'id="query">' + window.location.search)
+            // let doc = $(init_html);
+            // doc.find('#commands').text(JSON.stringify(recv_commands));
+            // doc.find('#query').text(window.location.search);
+            // let h = ''
+            // for(let i=0;i<doc.length; i++){
+            //     h+=doc[i].outerHTML || '';
+            // }
+            // h = '<!DOCTYPE html>' + h + '</html>';
+            let blob = new Blob([doc], {type: "text/html;charset=utf-8"});
+            saveAs(blob, "map.html");
+
+
+        };
 
     mapboxMap.on("load", () => {
         map_loaded = true;
@@ -293,6 +317,11 @@
             window.opener.postMessage({mapboxReady: true}, '*')
 
         // add_points_layer('points', [[39.98707741666667, 116.34885383333332, 'ssss']])
+
+        if (initial_commands) {
+            for (let cmd of initial_commands)
+                execute_cmd(cmd.cmd, cmd.args);
+        }
     });
 
     mapboxMap.on('click', (e) => {
