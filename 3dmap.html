@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang=en>
 <head>
-  <title>#</title>
+  <title></title>
   <meta charset=utf-8>
   <meta name=viewport content="initial-scale=1,maximum-scale=1,user-scalable=no">
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js'></script>
@@ -117,6 +117,11 @@
 
     function layer_unique_name(name) {
         console.log(name, mapboxMap.getLayer(`${name}_layer`))
+        try{
+            name = name.replaceAll(' ', '_')
+        } catch (e) {
+        }
+
         if (!mapboxMap.getLayer(`${name}_layer`))
             return `${name}_layer`
 
@@ -291,18 +296,8 @@
         document.getElementById("save-btn").onclick = function () {
             let doc = init_html.replace('id="commands">', 'id="commands">' + JSON.stringify(recv_commands))
             doc = doc.replace('id="query">', 'id="query">' + window.location.search)
-            // let doc = $(init_html);
-            // doc.find('#commands').text(JSON.stringify(recv_commands));
-            // doc.find('#query').text(window.location.search);
-            // let h = ''
-            // for(let i=0;i<doc.length; i++){
-            //     h+=doc[i].outerHTML || '';
-            // }
-            // h = '<!DOCTYPE html>' + h + '</html>';
             let blob = new Blob([doc], {type: "text/html;charset=utf-8"});
-            saveAs(blob, "map.html");
-
-
+            saveAs(blob, `${document.title || 'map'}.html`);
         };
 
     mapboxMap.on("load", () => {
@@ -312,6 +307,7 @@
 
         mapboxMap.addControl(new mapboxgl.FullscreenControl());
         mapboxMap.addControl(new mapboxgl.NavigationControl());
+        mapboxMap.addControl(new mapboxgl.ScaleControl());
 
         if (window.opener && window.opener.postMessage)
             window.opener.postMessage({mapboxReady: true}, '*')
