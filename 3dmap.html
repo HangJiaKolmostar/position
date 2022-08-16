@@ -105,14 +105,14 @@
         mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
     }
 
-    function on_add_layer(name) {
+    function on_add_layer(name, color) {
         all_layers.push(name)
         var parseHTML = function (str) {
             var tmp = document.implementation.createHTMLDocument("");
             tmp.body.innerHTML = str;
             return tmp.body.children;
         };
-        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')"/></td><td>${name}</td></tr>`)
+        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')"/></td><td style="color: ${color}">${name}</td></tr>`)
     }
 
     function layer_unique_name(name) {
@@ -162,7 +162,7 @@
         }, bg ? first_layer_id : bg);
         if (bg)
             first_layer_id = layer_id;
-        on_add_layer(layer_id)
+        on_add_layer(layer_id, color)
     }
 
     function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
@@ -211,12 +211,13 @@
             }
         });
 
+        color = color || '#4264fb';
         mapboxMap.addLayer({
             id: layer_id,
             type: 'circle',
             source: layer_id,
             paint: {
-                'circle-color': color || '#4264fb',
+                'circle-color': color,
                 'circle-radius': 4,
                 // 'circle-stroke-width': 2,
                 // 'circle-stroke-color': '#ffffff'
@@ -256,7 +257,7 @@
             mapboxMap.getCanvas().style.cursor = '';
             popup.remove();
         });
-        on_add_layer(layer_id)
+        on_add_layer(layer_id, color)
     }
 
     function execute_cmd(cmd, args) {
