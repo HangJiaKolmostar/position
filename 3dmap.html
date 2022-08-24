@@ -116,7 +116,7 @@
     }
 
     function layer_unique_name(name) {
-        console.log(name, mapboxMap.getLayer(`${name}_layer`))
+        // console.log(name, mapboxMap.getLayer(`${name}_layer`))
         try{
             name = name.replaceAll(' ', '_')
         } catch (e) {
@@ -136,7 +136,7 @@
 
     function _add_layer(name, type, geodata, color, opacity, paint_args, layer_args, bg) {
         let layer_id = layer_unique_name(name);
-        console.log(layer_id)
+        // console.log(layer_id, geodata)
         if (!first_layer_id)
             first_layer_id = layer_id;
 
@@ -252,6 +252,7 @@
             // Populate the popup and set its coordinates
             // based on the feature found.
             popup.setLngLat(coordinates).setHTML(description).addTo(mapboxMap);
+            console.log(description)
         });
         mapboxMap.on('mouseleave', layer_id, () => {
             mapboxMap.getCanvas().style.cursor = '';
