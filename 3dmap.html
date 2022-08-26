@@ -39,7 +39,9 @@
           font-family: Arial;
           font-size: 11px;
           color: rgba(0, 0, 0, .75);
-          text-decoration: none
+          text-decoration: none;
+          max-height: calc(100vh - 50px);
+          overflow: auto;
       }
 
   </style>
@@ -52,6 +54,11 @@
       <tr>
         <td colspan="2">
           <button id="save-btn"><b>SAVE PAGE</b></button>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <button id="reset-btn"><b>UNSELECT ALL</b></button>
         </td>
       </tr>
     </table>
@@ -95,11 +102,11 @@
 
     let all_layers = []
 
-    function toggle_layer(name) {
+    function toggle_layer(name, show) {
         let layer = mapboxMap.getLayer(name);
-        if (layer.visibility === 'none') {
+        if (show=== true || layer.visibility === 'none') {
             layer.visibility = 'visible';
-        } else {
+        } else if(show=== false || layer.visibility === 'visible') {
             layer.visibility = 'none';
         }
         mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
@@ -300,6 +307,19 @@
             doc = doc.replace('id="query">', 'id="query">' + window.location.search)
             let blob = new Blob([doc], {type: "text/html;charset=utf-8"});
             saveAs(blob, `${document.title || 'map'}.html`);
+        };
+
+    if(document.getElementById("reset-btn"))
+        document.getElementById("reset-btn").onclick = function () {
+            let checks = document.getElementsByTagName('input');
+            for(let i =0;i<checks.length;i++){
+                checks[i].checked = false;
+            }
+            all_layers.forEach((name)=>{
+                let layer = mapboxMap.getLayer(name);
+                layer.visibility = 'none'
+                mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
+            })
         };
 
     mapboxMap.on("load", () => {
