@@ -104,9 +104,10 @@
 
     function toggle_layer(name, show) {
         let layer = mapboxMap.getLayer(name);
-        if (show=== true || layer.visibility === 'none') {
+
+        if (show === true || layer.visibility === 'none') {
             layer.visibility = 'visible';
-        } else if(show=== false || layer.visibility === 'visible') {
+        } else {
             layer.visibility = 'none';
         }
         mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
