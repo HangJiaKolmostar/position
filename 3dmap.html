@@ -173,6 +173,20 @@
         on_add_layer(layer_id, color)
     }
 
+    function remove_layer(name){
+        name = name+'_layer'
+        $(`td:contains(${name})`).parent('tr').remove();
+        mapboxMap.removeLayer(name)
+    }
+
+    function hide_layer(name){
+        toggle_layer(name+'_layer', false)
+    }
+
+    function show_layer(name){
+        toggle_layer(name+'_layer', true)
+    }
+
     function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
         _add_layer(name, "fill-extrusion", geodata, color, opacity, args, layer_args, bg)
     }
