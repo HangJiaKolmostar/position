@@ -120,12 +120,12 @@
             tmp.body.innerHTML = str;
             return tmp.body.children;
         };
-        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')"/></td><td style="color: ${color}">${name}</td></tr>`)
+        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')" data-name="${name}"/></td><td style="color: ${color}">${name}</td></tr>`)
     }
 
     function layer_unique_name(name) {
         // console.log(name, mapboxMap.getLayer(`${name}_layer`))
-        try{
+        try {
             name = name.replaceAll(' ', '_')
         } catch (e) {
         }
@@ -173,18 +173,32 @@
         on_add_layer(layer_id, color)
     }
 
-    function remove_layer(name){
-        name = name+'_layer'
+    function remove_layer(name) {
+        name = name + '_layer'
         $(`td:contains(${name})`).parent('tr').remove();
         mapboxMap.removeLayer(name)
     }
 
-    function hide_layer(name){
-        toggle_layer(name+'_layer', false)
+    function hide_layer(name) {
+        name = name + '_layer'
+        let checks = document.getElementsByTagName('input');
+        for (let i = 0; i < checks.length; i++) {
+            if (checks[i].dataset.name === name) {
+                checks[i].checked = false;
+            }
+        }
+        toggle_layer(name, false)
     }
 
-    function show_layer(name){
-        toggle_layer(name+'_layer', true)
+    function show_layer(name) {
+        name = name + '_layer'
+        let checks = document.getElementsByTagName('input');
+        for (let i = 0; i < checks.length; i++) {
+            if (checks[i].dataset.name === name) {
+                checks[i].checked = true;
+            }
+        }
+        toggle_layer(name, true)
     }
 
     function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
@@ -324,13 +338,13 @@
             saveAs(blob, `${document.title || 'map'}.html`);
         };
 
-    if(document.getElementById("reset-btn"))
+    if (document.getElementById("reset-btn"))
         document.getElementById("reset-btn").onclick = function () {
             let checks = document.getElementsByTagName('input');
-            for(let i =0;i<checks.length;i++){
+            for (let i = 0; i < checks.length; i++) {
                 checks[i].checked = false;
             }
-            all_layers.forEach((name)=>{
+            all_layers.forEach((name) => {
                 let layer = mapboxMap.getLayer(name);
                 layer.visibility = 'none'
                 mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
