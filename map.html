@@ -23,7 +23,7 @@
     }
 
     let param = new URLSearchParams(window.location.search);
-    var map = new BMap.Map("allmap");
+    var map = new BMap.Map("allmap", {enableMapClick:false});
     var point = baidu_pos(
         parseFloat(param.get('longitude')) || 116.404,
         parseFloat(param.get('latitude')) || 39.915,
