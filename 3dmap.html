@@ -81,8 +81,7 @@
 
     const defaultPitch = flat ? 0 : 45;
     const defaultBearing = flat ? 0 : -17.6;
-    const defaultZoom = 14.95;
-    const maxZoom = 17;
+    const defaultZoom = parseFloat(query.get('zoom') || 15);
 
     mapboxgl.accessToken = "pk.eyJ1IjoiZ2Vlay1jYyIsImEiOiJja3VnZW42cTEyM2RiMm5temVnNjdvOHIyIn0.8-BhfDwt5IfVfXpGaSAtGA";
 
@@ -346,6 +345,7 @@
             }
             all_layers.forEach((name) => {
                 let layer = mapboxMap.getLayer(name);
+                if(!layer) return;
                 layer.visibility = 'none'
                 mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
             })
