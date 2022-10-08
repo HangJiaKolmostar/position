@@ -357,12 +357,13 @@
             func()
 
         // mapboxMap.addControl(new mapboxgl.FullscreenControl());
-        $(`<div class="mapboxgl-ctrl mapboxgl-ctrl-group"><button class="mapboxgl-ctrl-fullscreen" type="button" aria-label="Enter fullscreen"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Enter fullscreen"></span></button></div>`).on('click', ()=>{
-            if(document.fullscreenElement)
-                document.exitFullscreen();
-            else
-                $('body')[0].requestFullscreen();
-        }).appendTo('.mapboxgl-ctrl-top-right');
+        if(document.fullscreenEnabled)
+          $(`<div class="mapboxgl-ctrl mapboxgl-ctrl-group"><button class="mapboxgl-ctrl-fullscreen" type="button" aria-label="Enter fullscreen"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Enter fullscreen"></span></button></div>`).on('click', ()=>{
+              if(document.fullscreenElement)
+                  document.exitFullscreen();
+              else
+                  $('body')[0].requestFullscreen();
+          }).appendTo('.mapboxgl-ctrl-top-right');
 
         mapboxMap.addControl(new mapboxgl.NavigationControl());
         mapboxMap.addControl(new mapboxgl.ScaleControl());
