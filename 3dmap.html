@@ -70,7 +70,7 @@
 <script>
     const init_html = $('html')[0].outerHTML;
     if ($('#commands').text().length)  // this page is open from saved file
-        $('#layers-table').empty();
+        $('#layers-table').empty().append(`<tr><td colspan="2"> <button id="reset-btn"><b>UNSELECT ALL</b></button> </td> </tr>`);
 
     let query = new URLSearchParams(window.location.search || $('#query').text());
     const mapCenter = [
@@ -103,13 +103,14 @@
 
     function toggle_layer(name, show) {
         let layer = mapboxMap.getLayer(name);
-
-        if (show === true || layer.visibility === 'none') {
-            layer.visibility = 'visible';
-        } else {
-            layer.visibility = 'none';
+        console.log(layer)
+        let visibility = mapboxMap.getLayoutProperty(layer.id, 'visibility');
+        if (show === true || visibility === 'none') {
+            visibility = 'visible';
+        } else if (show === false || visibility === 'visible' || visibility === undefined) {
+            visibility = 'none';
         }
-        mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
+        mapboxMap.setLayoutProperty(layer.id, 'visibility', visibility);
     }
 
     function on_add_layer(name, color) {
@@ -227,7 +228,7 @@
         })
     }
 
-    function add_points_layer(name, points, color = null, paint_args = {}, layer_args = {}, bg = false) {
+    function add_points_layer(name, points, color = null, paint_args = {}, layer_args = {}, bg = false, layer_ctrl = true, visible = true) {
         let layer_id = layer_unique_name(name);
         mapboxMap.addSource(layer_id, {
             type: "geojson",
@@ -251,6 +252,7 @@
             id: layer_id,
             type: 'circle',
             source: layer_id,
+            visibility: visible ? 'visible' : 'none',
             paint: {
                 'circle-color': color,
                 'circle-radius': 4,
@@ -293,7 +295,42 @@
             mapboxMap.getCanvas().style.cursor = '';
             popup.remove();
         });
-        on_add_layer(layer_id, color)
+        if (layer_ctrl)
+            on_add_layer(layer_id, color);
+        return layer_id
+    }
+
+    function add_batch_points(name, points_list, color = '#4264fb', paint_args = {}, layer_args = {}) {
+        let layer_id = add_points_layer(name, points_list[0], color, paint_args, layer_args, bg = false, layer_ctrl = false, visible = false)
+        let source_list = [];
+        for (let i = 0; i < points_list.length; i++) {
+            source_list.push({
+                'type': 'FeatureCollection',
+                'features': points_list[i].map((p) => ({
+                    'type': 'Feature',
+                    'properties': {
+                        'description': `<pre>${p[1]}, ${p[0]}\n${p[2] || ''}</pre>`,
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [p[1], p[0]]
+                    }
+                }))
+            });
+        }
+        let checked = layer_args.visibility === 'none' ? '' : 'checked';
+        let elem = $(`<div><input type="checkbox" ${checked} onchange="toggle_layer('${layer_id}')" data-name="${layer_id}">
+                          <label style="color: ${color}">${name}</label>
+                          <input type="range"  min="1" value="1" max="${points_list.length}"><span>1</span></div>`).appendTo('.pane');
+        elem.find('input[type=range]').on('input', function () {
+            let idx = parseInt($(this).val()) - 1;
+            $(this).next().text(idx + 1);
+            // mapboxMap.setLayoutProperty(layer_id, 'source', source_list[idx]);
+            mapboxMap.getSource(layer_id).setData(source_list[idx]);
+        });
+        if (layer_args.visibility === 'none')
+            mapboxMap.setLayoutProperty(layer_id, 'visibility', 'none');
+        all_layers.push(layer_id); // make "unselect all" work
     }
 
     function execute_cmd(cmd, args) {
@@ -345,7 +382,7 @@
             }
             all_layers.forEach((name) => {
                 let layer = mapboxMap.getLayer(name);
-                if(!layer) return;
+                if (!layer) return;
                 layer.visibility = 'none'
                 mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
             })
@@ -357,13 +394,13 @@
             func()
 
         // mapboxMap.addControl(new mapboxgl.FullscreenControl());
-        if(document.fullscreenEnabled)
-          $(`<div class="mapboxgl-ctrl mapboxgl-ctrl-group"><button class="mapboxgl-ctrl-fullscreen" type="button" aria-label="Enter fullscreen"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Enter fullscreen"></span></button></div>`).on('click', ()=>{
-              if(document.fullscreenElement)
-                  document.exitFullscreen();
-              else
-                  $('body')[0].requestFullscreen();
-          }).appendTo('.mapboxgl-ctrl-top-right');
+        if (document.fullscreenEnabled)
+            $(`<div class="mapboxgl-ctrl mapboxgl-ctrl-group"><button class="mapboxgl-ctrl-fullscreen" type="button" aria-label="Enter fullscreen"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Enter fullscreen"></span></button></div>`).on('click', () => {
+                if (document.fullscreenElement)
+                    document.exitFullscreen();
+                else
+                    $('body')[0].requestFullscreen();
+            }).appendTo('.mapboxgl-ctrl-top-right');
 
         mapboxMap.addControl(new mapboxgl.NavigationControl());
         mapboxMap.addControl(new mapboxgl.ScaleControl());
@@ -371,17 +408,30 @@
         if (window.opener && window.opener.postMessage)
             window.opener.postMessage({mapboxReady: true}, '*')
 
-        // add_points_layer('points', [[39.98707741666667, 116.34885383333332, 'ssss']])
 
         if (initial_commands) {
             for (let cmd of initial_commands)
                 execute_cmd(cmd.cmd, cmd.args);
         }
+
+        // add_points_layer('points', [[39.98707741666667, 116.34885383333332, 'ssss']])
+        //
+        // execute_cmd('add_batch_points(name,points_list, color)', {
+        //     name: 'points', points_list: [
+        //         // random points
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //     ],color:'red'
+        // })
     });
 
     mapboxMap.on('click', (e) => {
         console.log('Clicked:', e.lngLat);
     });
+
 </script>
 </body>
 </html>
