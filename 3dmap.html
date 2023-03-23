@@ -213,11 +213,11 @@
         _add_layer(name, "line", geodata, color, opacity, args, layer_args, bg)
     }
 
-    function add_markers(points) {
+    function add_markers(points, color) {
         points.forEach(point => {
             const marker = new mapboxgl.Marker({
                 draggable: false,
-                color: '#ff0000'
+                color: color || '#ff0000'
             })
             marker.setLngLat([point[1], point[0]])
             marker.setPopup(new mapboxgl.Popup().setHTML(`<pre>${point[1]}, ${point[0]}\n${point[2] || ''}</pre>`))
@@ -431,7 +431,6 @@
     mapboxMap.on('click', (e) => {
         console.log('Clicked:', e.lngLat);
     });
-
 </script>
 </body>
 </html>
