@@ -230,6 +230,8 @@
 
     function add_points_layer(name, points, color = null, paint_args = {}, layer_args = {}, bg = false, layer_ctrl = true, visible = true) {
         let layer_id = layer_unique_name(name);
+        color = color || '#4264fb';
+
         mapboxMap.addSource(layer_id, {
             type: "geojson",
             data: {
@@ -238,7 +240,7 @@
                     'type': 'Feature',
                     'properties': {
                         'description': `<pre>${p[1]}, ${p[0]}\n${p[2] || ''}</pre>`,
-                        'color': p[3]  || '#4264fb' ,
+                        'color': p[3]  || color ,
                     },
                     'geometry': {
                         'type': 'Point',
@@ -248,7 +250,6 @@
             }
         });
 
-        color = color || '#4264fb';
         mapboxMap.addLayer({
             id: layer_id,
             type: 'circle',
