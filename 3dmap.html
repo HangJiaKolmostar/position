@@ -268,7 +268,8 @@
         // Create a popup, but don't add it to the map yet.
         const popup = new mapboxgl.Popup({
             closeButton: false,
-            closeOnClick: false
+            closeOnClick: false,
+            maxWidth:'1800px'
         });
 
         mapboxMap.on('mouseenter', layer_id, (e) => {
