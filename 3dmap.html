@@ -238,10 +238,11 @@
                     'type': 'Feature',
                     'properties': {
                         'description': `<pre>${p[1]}, ${p[0]}\n${p[2] || ''}</pre>`,
+                        'color': p[3]  || '#4264fb' ,
                     },
                     'geometry': {
                         'type': 'Point',
-                        'coordinates': [p[1], p[0]]
+                        'coordinates': [p[1], p[0]],
                     }
                 }))
             }
@@ -254,7 +255,7 @@
             source: layer_id,
             visibility: visible ? 'visible' : 'none',
             paint: {
-                'circle-color': color,
+                'circle-color': ['coalesce', ["get", "color"], ['to-color', color]],
                 'circle-radius': 4,
                 // 'circle-stroke-width': 2,
                 // 'circle-stroke-color': '#ffffff'
@@ -269,7 +270,7 @@
         const popup = new mapboxgl.Popup({
             closeButton: false,
             closeOnClick: false,
-            maxWidth:'1800px'
+            maxWidth: '1800px'
         });
 
         mapboxMap.on('mouseenter', layer_id, (e) => {
@@ -298,7 +299,7 @@
         });
         if (layer_ctrl)
             on_add_layer(layer_id, color);
-        return layer_id
+        return layer_id;
     }
 
     function add_batch_points(name, points_list, color = '#4264fb', paint_args = {}, layer_args = {}) {
