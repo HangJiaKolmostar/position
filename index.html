@@ -17,7 +17,7 @@
             let long = position.coords.longitude;
             document.querySelector('body').innerHTML = `Location:<br/><code>${lat},${long}</code><br/>Tap screen to copy this location to clipboard.`
             navigator.clipboard.writeText(`${lat},${long}`).then(()=>{});
-            // document.onclick = ()=> {navigator.clipboard.writeText(`${lat},${long}`).then(()=>{window.close();})}
+            document.onclick = ()=> {navigator.clipboard.writeText(`${lat},${long}`).then(()=>{})}  // window.close();
           });
     }
     getCurrentPosition()
