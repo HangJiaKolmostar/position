@@ -140,10 +140,10 @@
         if (!layer) return;
         mapboxMap.moveLayer(name);  // move layer to top
         let visibility = mapboxMap.getLayoutProperty(layer.id, 'visibility');
-        if (show === true || visibility === 'none') {
-            visibility = 'visible';
-        } else if (show === false || visibility === 'visible' || visibility === undefined) {
-            visibility = 'none';
+        if (show === undefined){
+            visibility = visibility === 'none'? 'visible': 'none';
+        }else{
+            visibility = show ? 'visible': 'none';
         }
         mapboxMap.setLayoutProperty(layer.id, 'visibility', visibility);
     }
