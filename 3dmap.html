@@ -63,29 +63,28 @@
 <body>
 <noscript>You need to enable JavaScript to run this app.</noscript>
 <div class="pane">
-  <form onsubmit="return!1" class="pure-form">
-    <table id="layers-table">
-      <tr>
-        <td colspan="2">
-          <button id="save-btn"><b>SAVE PAGE</b></button>
-        </td>
-      </tr>
-      <tr>
-        <td colspan="2">
-          <button id="reset-btn"><b>UNSELECT ALL</b></button>
-        </td>
-      </tr>
+<form onsubmit="return!1" class="pure-form">
+    <table>
+        <tr>
+            <td colspan="2">
+            <button id="save-btn"><b>SAVE PAGE</b></button>
+            </td>
+        </tr>
+        <tr id="marker-toggle-panel" style="display: none;"><td ><input type="checkbox" checked onchange="toggle_markers()" id="marker-toggle"></td><td style="font-weight: bold;"><label for="marker-toggle">All Markers</label></td></tr>
+        <tr><td><input type="checkbox" checked onchange="toggle_all_layer()" id="toggle-all-layers"></td><td style="font-weight: bold;"><label for="toggle-all-layers">All Layers</label></td></tr>
     </table>
-  </form>
+    <table id="layers-table">
+    </table>
+</form>
 </div>
-<div class="note">ssss</div>
+<div class="note"></div>
 <div id=map></div>
 <script type="application/json-lines" id="commands"></script>
 <script type="text/tpl" id="query"></script>
 <script>
     const init_html = $('html')[0].outerHTML;
     if ($('#commands').text().length)  // this page is open from saved file
-        $('#layers-table').empty().append(`<tr><td colspan="2"> <button id="reset-btn"><b>UNSELECT ALL</b></button> </td> </tr>`);
+        $('#save-btn').remove();
 
     let query = new URLSearchParams(window.location.search || $('#query').text());
     const mapCenter = [
@@ -117,6 +116,18 @@
 
     let all_layers = []
 
+    function toggle_all_layer(){
+        let check = document.getElementById('toggle-all-layers').checked;
+
+        let checks = document.querySelectorAll('#layers-table input');
+        for (let i = 0; i < checks.length; i++) {
+            checks[i].checked = check;
+        }
+        all_layers.forEach((name) => {
+            toggle_layer(name, check);
+        });
+    }
+
     function add_note(note, html) {
         if(html)
             $('.note').html(note).show();
@@ -126,7 +137,8 @@
 
     function toggle_layer(name, show) {
         let layer = mapboxMap.getLayer(name);
-        console.log(layer)
+        if (!layer) return;
+        mapboxMap.moveLayer(name);  // move layer to top
         let visibility = mapboxMap.getLayoutProperty(layer.id, 'visibility');
         if (show === true || visibility === 'none') {
             visibility = 'visible';
@@ -143,7 +155,7 @@
             tmp.body.innerHTML = str;
             return tmp.body.children;
         };
-        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')" data-name="${name}"/></td><td style="color: ${color}">${name}</td></tr>`)
+        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')" data-name="${name}" id="map-layer-${name}"/></td><td style="color: ${color}"><label for="map-layer-${name}">${name}</label></td></tr>`);
     }
 
     function layer_unique_name(name) {
@@ -236,11 +248,21 @@
         _add_layer(name, "line", geodata, color, opacity, args, layer_args, bg)
     }
 
-    function add_markers(points, color) {
+    function toggle_markers(){
+        let check = document.getElementById('marker-toggle').checked;
+        let markers = document.getElementsByClassName('mapboxgl-marker');
+        for (marker of markers) {
+            marker.style.display = check ? 'block' : 'none';
+        };
+    }
+
+    function add_markers(points, color, rotation=0) {
+        document.getElementById('marker-toggle-panel').style.display = 'table-row';
         points.forEach(point => {
             const marker = new mapboxgl.Marker({
                 draggable: false,
-                color: color || '#ff0000'
+                color: color || '#ff0000',
+                rotation: rotation,
             })
             marker.setLngLat([point[1], point[0]])
             marker.setPopup(new mapboxgl.Popup().setHTML(`<pre>${point[1]}, ${point[0]}\n${point[2] || ''}</pre>`))
@@ -262,7 +284,7 @@
                 'features': points.map((p) => ({
                     'type': 'Feature',
                     'properties': {
-                        'description': `<pre>${p[1]}, ${p[0]}\n${p[2] || ''}</pre>`,
+                        'description': `<pre>${name}\n(${p[1]}, ${p[0]})\n${p[2] || ''}</pre>`,
                         'color': p[3] || color,
                     },
                     'geometry': {
