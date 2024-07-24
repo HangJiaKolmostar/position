@@ -410,8 +410,10 @@
 
     if (is_in_jupyter) {
         var comm = Jupyter.notebook.kernel.comm_manager.new_comm('3d-map-command-channel')
+        console.log('Jupyter notebook detected, using comm to receive commands')
         comm.on_msg(
             function(msg) {
+                console.log('Received command:', msg);
                 let data = msg.content.data;
                 if (data.cmd === undefined || data.args === undefined)
                     return;
