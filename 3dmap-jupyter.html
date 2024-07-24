@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang=en>
+<head>
+  <title></title>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js'></script>
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.css' rel='stylesheet'/>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://fastly.jsdelivr.net/gh/eligrey/FileSaver.js/dist/FileSaver.min.js"></script>
+  <style>
+      body {
+          margin: 0;
+          padding: 0
+      }
+
+      #map {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 100%
+      }
+
+      table, td, th, tr {
+          border-collapse: collapse;
+          text-align: left
+      }
+
+      .pane {
+          padding: 0 15px;
+          background: #ccc;
+          line-height: 28px;
+          color: #fff;
+          z-index: 10;
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          box-shadow: rgba(0, 0, 0, .35) 0 5px 15px;
+          font-family: Arial;
+          font-size: 11px;
+          color: rgba(0, 0, 0, .75);
+          text-decoration: none;
+          max-height: calc(100vh - 110px);
+          overflow: auto;
+      }
+
+      .note {
+          width: 800px;
+          height: auto;
+          background: white;
+          padding: 15px;
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 99;
+          display: none;
+          font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+          line-height: 23px;
+      }
+  </style>
+</head>
+<body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+<div class="pane">
+<form onsubmit="return!1" class="pure-form">
+    <table>
+        <tr>
+            <td colspan="2">
+            <button id="save-btn"><b>SAVE PAGE</b></button>
+            </td>
+        </tr>
+        <tr id="marker-toggle-panel" style="display: none;"><td ><input type="checkbox" checked onchange="toggle_markers()" id="marker-toggle"></td><td style="font-weight: bold;"><label for="marker-toggle">All Markers</label></td></tr>
+        <tr><td><input type="checkbox" checked onchange="toggle_all_layer()" id="toggle-all-layers"></td><td style="font-weight: bold;"><label for="toggle-all-layers">All Layers</label></td></tr>
+    </table>
+    <table id="layers-table">
+    </table>
+</form>
+</div>
+<div class="note"></div>
+<div id=map></div>
+<script type="application/json-lines" id="commands"></script>
+<script type="text/tpl" id="query"></script>
+<script>
+    const init_html = $('html')[0].outerHTML;
+    if ($('#commands').text().length)  // this page is open from saved file
+        $('#save-btn').remove();
+
+    let query = new URLSearchParams(window.location.search || $('#query').text());
+    const mapCenter = [
+        parseFloat(query.get('lng') || 116.348853),
+        parseFloat(query.get('lat') || 39.987077),
+    ];
+    const flat = query.get('2d') || false;
+
+    const defaultPitch = flat ? 0 : 45;
+    const defaultBearing = flat ? 0 : -17.6;
+    const defaultZoom = parseFloat(query.get('zoom') || 15);
+
+    mapboxgl.accessToken = "pk.eyJ1IjoiZ2Vlay1jYyIsImEiOiJja3VnZW42cTEyM2RiMm5temVnNjdvOHIyIn0.8-BhfDwt5IfVfXpGaSAtGA";
+
+    let initial_commands = JSON.parse($('#commands').text() || '[]');
+
+    const mapboxMap = new mapboxgl.Map({
+        container: "map",
+        // https://docs.mapbox.com/api/maps/styles/#mapbox-styles
+        // style: "mapbox://styles/mapbox/streets-v11",
+        style: "mapbox://styles/mapbox/" + (query.get('style') || 'streets-v11'),
+        center: mapCenter,
+        zoom: defaultZoom,
+        pitch: defaultPitch,
+        bearing: defaultBearing,
+        antialias: true,
+        cooperativeGestures: true, // ctrl or ⌘ will be required to scroll.
+    });
+
+    let all_layers = []
+
+    function toggle_all_layer(){
+        let check = document.getElementById('toggle-all-layers').checked;
+
+        let checks = document.querySelectorAll('#layers-table input');
+        for (let i = 0; i < checks.length; i++) {
+            checks[i].checked = check;
+        }
+        all_layers.forEach((name) => {
+            toggle_layer(name, check);
+        });
+    }
+
+    function add_note(note, html) {
+        if(html)
+            $('.note').html(note).show();
+        else
+            $('.note').text(note).show();
+    }
+
+    function toggle_layer(name, show) {
+        let layer = mapboxMap.getLayer(name);
+        if (!layer) return;
+        mapboxMap.moveLayer(name);  // move layer to top
+        let visibility = mapboxMap.getLayoutProperty(layer.id, 'visibility');
+        if (show === undefined){
+            visibility = visibility === 'none'? 'visible': 'none';
+        }else{
+            visibility = show ? 'visible': 'none';
+        }
+        mapboxMap.setLayoutProperty(layer.id, 'visibility', visibility);
+    }
+
+    function on_add_layer(name, color) {
+        all_layers.push(name)
+        var parseHTML = function (str) {
+            var tmp = document.implementation.createHTMLDocument("");
+            tmp.body.innerHTML = str;
+            return tmp.body.children;
+        };
+        $('#layers-table').append(`<tr><td><input type="checkbox" checked onchange="toggle_layer('${name}')" data-name="${name}" id="map-layer-${name}"/></td><td style="color: ${color}"><label for="map-layer-${name}">${name}</label></td></tr>`);
+    }
+
+    function layer_unique_name(name) {
+        // console.log(name, mapboxMap.getLayer(`${name}_layer`))
+        try {
+            name = name.replaceAll(' ', '_')
+        } catch (e) {
+        }
+
+        if (!mapboxMap.getLayer(`${name}_layer`))
+            return `${name}_layer`
+
+        let i = 1;
+        while (mapboxMap.getLayer(`${name}_layer_${i}`)) {
+            i++;
+        }
+        return `${name}_layer_${i}`
+    }
+
+    let first_layer_id = undefined;
+
+    function _add_layer(name, type, geodata, color, opacity, paint_args, layer_args, bg) {
+        let layer_id = layer_unique_name(name);
+        // console.log(layer_id, geodata)
+        if (!first_layer_id)
+            first_layer_id = layer_id;
+
+        mapboxMap.addSource(layer_id, {
+            type: "geojson",
+            data: geodata
+        });
+
+        paint_args[`${type}-color`] = ['coalesce', ["get", "color"], ['to-color', color]];
+        paint_args[`${type}-opacity`] = opacity;
+        if (type === "fill-extrusion")
+            paint_args[`${type}-height`] = ["get", "height"];
+
+        if (!layer_args)
+            layer_args = {}
+
+        mapboxMap.addLayer({
+            id: layer_id,
+            type: type,
+            source: layer_id,
+            paint: paint_args,
+            ...layer_args
+        }, bg ? first_layer_id : bg);
+        if (bg)
+            first_layer_id = layer_id;
+        on_add_layer(layer_id, color)
+    }
+
+    function remove_layer(name) {
+        name = name + '_layer'
+        $(`td:contains(${name})`).parent('tr').remove();
+        mapboxMap.removeLayer(name)
+    }
+
+    function hide_layer(name) {
+        name = name + '_layer'
+        let checks = document.getElementsByTagName('input');
+        for (let i = 0; i < checks.length; i++) {
+            if (checks[i].dataset.name === name) {
+                checks[i].checked = false;
+            }
+        }
+        toggle_layer(name, false)
+    }
+
+    function show_layer(name) {
+        name = name + '_layer'
+        let checks = document.getElementsByTagName('input');
+        for (let i = 0; i < checks.length; i++) {
+            if (checks[i].dataset.name === name) {
+                checks[i].checked = true;
+            }
+        }
+        toggle_layer(name, true)
+    }
+
+    function add_3d_layer(name, geodata, color, opacity, args, layer_args, bg) {
+        _add_layer(name, "fill-extrusion", geodata, color, opacity, args, layer_args, bg)
+    }
+
+    function add_2d_layer(name, geodata, color, opacity, args, layer_args, bg) {
+        _add_layer(name, "fill", geodata, color, opacity, args, layer_args, bg)
+    }
+
+    function add_route_layer(name, geodata, color, opacity, args, layer_args, bg) {
+        _add_layer(name, "line", geodata, color, opacity, args, layer_args, bg)
+    }
+
+    function toggle_markers(){
+        let check = document.getElementById('marker-toggle').checked;
+        let markers = document.getElementsByClassName('mapboxgl-marker');
+        for (marker of markers) {
+            marker.style.display = check ? 'block' : 'none';
+        };
+    }
+
+    function add_markers(points, color, rotation=0) {
+        document.getElementById('marker-toggle-panel').style.display = 'table-row';
+        points.forEach(point => {
+            const marker = new mapboxgl.Marker({
+                draggable: false,
+                color: color || '#ff0000',
+                rotation: rotation,
+            })
+            marker.setLngLat([point[1], point[0]])
+            marker.setPopup(new mapboxgl.Popup().setHTML(`<pre>${point[1]}, ${point[0]}\n${point[2] || ''}</pre>`))
+            const markerDiv = marker.getElement();
+            markerDiv.addEventListener('mouseenter', () => marker.togglePopup());
+            markerDiv.addEventListener('mouseleave', () => marker.togglePopup());
+            marker.addTo(mapboxMap)
+        })
+    }
+
+    function add_points_layer(name, points, color = null, paint_args = {}, layer_args = {}, bg = false, layer_ctrl = true, visible = true) {
+        let layer_id = layer_unique_name(name);
+        color = color || '#4264fb';
+
+        mapboxMap.addSource(layer_id, {
+            type: "geojson",
+            data: {
+                'type': 'FeatureCollection',
+                'features': points.map((p) => ({
+                    'type': 'Feature',
+                    'properties': {
+                        'description': `<pre>${name}\n(${p[1]}, ${p[0]})\n${p[2] || ''}</pre>`,
+                        'color': p[3] || color,
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [p[1], p[0]],
+                    }
+                }))
+            }
+        });
+
+        mapboxMap.addLayer({
+            id: layer_id,
+            type: 'circle',
+            source: layer_id,
+            visibility: visible ? 'visible' : 'none',
+            paint: {
+                'circle-color': ['coalesce', ["get", "color"], ['to-color', color]],
+                'circle-radius': 4,
+                // 'circle-stroke-width': 2,
+                // 'circle-stroke-color': '#ffffff'
+                ...paint_args
+            },
+            ...layer_args
+        }, bg ? first_layer_id : bg);
+        if (bg)
+            first_layer_id = layer_id;
+
+        // Create a popup, but don't add it to the map yet.
+        const popup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false,
+            maxWidth: '1800px'
+        });
+
+        mapboxMap.on('mouseenter', layer_id, (e) => {
+            // Change the cursor style as a UI indicator.
+            mapboxMap.getCanvas().style.cursor = 'pointer';
+
+            // Copy coordinates array.
+            const coordinates = e.features[0].geometry.coordinates.slice();
+            const description = e.features[0].properties.description;
+
+            // Ensure that if the map is zoomed out such that multiple
+            // copies of the feature are visible, the popup appears
+            // over the copy being pointed to.
+            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+            }
+
+            // Populate the popup and set its coordinates
+            // based on the feature found.
+            popup.setLngLat(coordinates).setHTML(description).addTo(mapboxMap);
+            console.log(description)
+        });
+        mapboxMap.on('mouseleave', layer_id, () => {
+            mapboxMap.getCanvas().style.cursor = '';
+            popup.remove();
+        });
+        if (layer_ctrl)
+            on_add_layer(layer_id, color);
+        return layer_id;
+    }
+
+    function add_batch_points(name, points_list, color = '#4264fb', paint_args = {}, layer_args = {}) {
+        let layer_id = add_points_layer(name, points_list[0], color, paint_args, layer_args, bg = false, layer_ctrl = false, visible = false)
+        let source_list = [];
+        for (let i = 0; i < points_list.length; i++) {
+            source_list.push({
+                'type': 'FeatureCollection',
+                'features': points_list[i].map((p) => ({
+                    'type': 'Feature',
+                    'properties': {
+                        'description': `<pre>${p[1]}, ${p[0]}\n${p[2] || ''}</pre>`,
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [p[1], p[0]]
+                    }
+                }))
+            });
+        }
+        let checked = layer_args.visibility === 'none' ? '' : 'checked';
+        let elem = $(`<div><input type="checkbox" ${checked} onchange="toggle_layer('${layer_id}')" data-name="${layer_id}">
+                          <label style="color: ${color}">${name}</label>
+                          <input type="range"  min="1" value="1" max="${points_list.length}"><span>1</span></div>`).appendTo('.pane');
+        elem.find('input[type=range]').on('input', function () {
+            let idx = parseInt($(this).val()) - 1;
+            $(this).next().text(idx + 1);
+            // mapboxMap.setLayoutProperty(layer_id, 'source', source_list[idx]);
+            mapboxMap.getSource(layer_id).setData(source_list[idx]);
+        });
+        if (layer_args.visibility === 'none')
+            mapboxMap.setLayoutProperty(layer_id, 'visibility', 'none');
+        all_layers.push(layer_id); // make "unselect all" work
+    }
+
+    function execute_cmd(cmd, args) {
+        let arg_names = ['map'];
+        let arg_vals = [mapboxMap];
+        for (let key in args) {
+            arg_names.push(key);
+            arg_vals.push(args[key]);
+        }
+        try {
+            const script_func = new Function(...arg_names, `return eval(${cmd})`);
+            script_func(...arg_vals);
+        } catch (e) {
+            console.log('Exception occurred when execute cmd: %s\n%s', cmd, e);
+        }
+    }
+
+    let map_loaded = false;
+    let waiting_list = [];
+    let recv_commands = [];
+
+    window.addEventListener("message", (event) => {
+        let data = event.data;
+        if (data.cmd === undefined || data.args === undefined)
+            return;
+
+        // Persistence data
+        recv_commands.push(data);
+
+        if (map_loaded)
+            execute_cmd(data.cmd, data.args);
+        else
+            waiting_list.push(() => execute_cmd(data.cmd, data.args))
+    }, false);
+
+    if (document.getElementById("save-btn"))
+        document.getElementById("save-btn").onclick = function () {
+            let doc = init_html.replace('id="commands">', 'id="commands">' + JSON.stringify(recv_commands))
+            doc = doc.replace('id="query">', 'id="query">' + window.location.search)
+            let blob = new Blob([doc], {type: "text/html;charset=utf-8"});
+            saveAs(blob, `${document.title || 'map'}.html`);
+        };
+
+    if (document.getElementById("reset-btn"))
+        document.getElementById("reset-btn").onclick = function () {
+            let checks = document.getElementsByTagName('input');
+            for (let i = 0; i < checks.length; i++) {
+                checks[i].checked = false;
+            }
+            all_layers.forEach((name) => {
+                let layer = mapboxMap.getLayer(name);
+                if (!layer) return;
+                layer.visibility = 'none'
+                mapboxMap.setLayoutProperty(layer.id, 'visibility', layer.visibility);
+            })
+        };
+
+    mapboxMap.on("load", () => {
+        map_loaded = true;
+        for (let func of waiting_list)
+            func()
+
+        // mapboxMap.addControl(new mapboxgl.FullscreenControl());
+        if (document.fullscreenEnabled)
+            $(`<div class="mapboxgl-ctrl mapboxgl-ctrl-group"><button class="mapboxgl-ctrl-fullscreen" type="button" aria-label="Enter fullscreen"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Enter fullscreen"></span></button></div>`).on('click', () => {
+                if (document.fullscreenElement)
+                    document.exitFullscreen();
+                else
+                    $('body')[0].requestFullscreen();
+            }).appendTo('.mapboxgl-ctrl-top-right');
+
+        mapboxMap.addControl(new mapboxgl.NavigationControl());
+        mapboxMap.addControl(new mapboxgl.ScaleControl());
+
+        if (window.opener && window.opener.postMessage)
+            window.opener.postMessage({mapboxReady: true}, '*')
+
+
+        if (initial_commands) {
+            for (let cmd of initial_commands)
+                execute_cmd(cmd.cmd, cmd.args);
+        }
+
+        // add_points_layer('points', [[39.98707741666667, 116.34885383333332, 'ssss']])
+        //
+        // execute_cmd('add_batch_points(name,points_list, color)', {
+        //     name: 'points', points_list: [
+        //         // random points
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //         new Array(2).fill(0).map(() => ([39.98641 + Math.random() / 1000, 116.34898 + Math.random() / 1000,])),
+        //     ],color:'red'
+        // })
+    });
+
+    mapboxMap.on('click', (e) => {
+        console.log('Clicked:', e.lngLat);
+    });
+</script>
+</body>
+</html>
