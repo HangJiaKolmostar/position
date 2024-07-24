@@ -408,9 +408,25 @@
     }
     const is_in_jupyter = checkJupyterParam();
 
-    if (is_in_jupyter)
-        console.log('In Jupyter')
-    else
+    if (is_in_jupyter) {
+        var comm = Jupyter.notebook.kernel.comm_manager.new_comm('3d-map-command-channel')
+        comm.on_msg(
+            function(msg) {
+                let data = msg.content.data;
+                if (data.cmd === undefined || data.args === undefined)
+                    return;
+
+                // Persistence data
+                recv_commands.push(data);
+
+                if (map_loaded)
+                    execute_cmd(data.cmd, data.args);
+                else
+                    waiting_list.push(() => execute_cmd(data.cmd, data.args))
+            }
+        )
+    }
+    else{
         window.addEventListener("message", (event) => {
             let data = event.data;
             if (data.cmd === undefined || data.args === undefined)
@@ -424,6 +440,7 @@
             else
                 waiting_list.push(() => execute_cmd(data.cmd, data.args))
         }, false);
+    }
 
     if (document.getElementById("save-btn"))
         document.getElementById("save-btn").onclick = function () {
