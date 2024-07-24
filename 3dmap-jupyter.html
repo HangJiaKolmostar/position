@@ -400,19 +400,30 @@
     let waiting_list = [];
     let recv_commands = [];
 
-    window.addEventListener("message", (event) => {
-        let data = event.data;
-        if (data.cmd === undefined || data.args === undefined)
-            return;
 
-        // Persistence data
-        recv_commands.push(data);
+    function checkJupyterParam() {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        return urlParams.has('jupyter') && urlParams.get('jupyter') !== '';
+    }
+    const is_in_jupyter = checkJupyterParam();
 
-        if (map_loaded)
-            execute_cmd(data.cmd, data.args);
-        else
-            waiting_list.push(() => execute_cmd(data.cmd, data.args))
-    }, false);
+    if (is_in_jupyter)
+        console.log('In Jupyter')
+    else
+        window.addEventListener("message", (event) => {
+            let data = event.data;
+            if (data.cmd === undefined || data.args === undefined)
+                return;
+
+            // Persistence data
+            recv_commands.push(data);
+
+            if (map_loaded)
+                execute_cmd(data.cmd, data.args);
+            else
+                waiting_list.push(() => execute_cmd(data.cmd, data.args))
+        }, false);
 
     if (document.getElementById("save-btn"))
         document.getElementById("save-btn").onclick = function () {
