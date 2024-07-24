@@ -430,6 +430,7 @@
     }
     else{
         window.addEventListener("message", (event) => {
+            console.log('Received message from parent:', event.data);
             let data = event.data;
             if (data.cmd === undefined || data.args === undefined)
                 return;
